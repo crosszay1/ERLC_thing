@@ -109,7 +109,7 @@ try:
         print("[1] setup the script with new settings")
         print("[2] load exisitng settings")
         print("[3] view credits")
-        setting_choice = int(input('please say either 1 or 2: ' ))
+        setting_choice = int(input('Please enter the number that coresponds with your choice!: ' ))
 
         if setting_choice == 1:
             os.system('cls' if os.name == 'nt' else 'clear')
@@ -191,8 +191,8 @@ try:
             print("testing - crosszay")
             print("special thanks - chatgpt for indenting things for me | that cool guy who made the youtube short")
             print("")
-            print("Contact")
-            print("want to contact me for some reason? Send me a message on discord!")
+            print("Contact Me")
+            print("want to contact me for some reason? Send me a message on discord! https://discord.gg/guW2yDFZ")
         else:
             print("thats not a valid answer!")
             print("exiting")
@@ -206,7 +206,7 @@ except Exception as e:
     print("a critical error occured, and shut down the program")
     print("Restarting the program will most likely fix this error... if it doesn't, try deleting settings.ini")
     print("")
-    print("if your a super-duper cool person, make a bug ticket on my non-existent discord server that I might make later in the future")
+    print("if your a super-duper cool person, make a bug ticket on my discord server! (https://discord.gg/guW2yDFZ)")
     print("")
     print("")
     print("if your me, (hi me!) or someone who for some reason wants to know why the program crashed, the error message is below")
