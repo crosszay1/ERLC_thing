@@ -1,6 +1,7 @@
 try:
     import os
-
+    def clearscreen():
+        os.system('cls' if os.name == 'nt' else 'clear')
     print("THIS PROGRAM WILL CRASH IF YOU HAVE NOT INSTALLED THE FOLLOWING LIBRARIES")
     print("sounddevice")
     print("numpy")
@@ -12,25 +13,24 @@ try:
     print("")
     print("press ENTER to continue")
     input("")
-    os.system('cls' if os.name == 'nt' else 'clear')
+    clearscreen()
 
     """
     requirements:
       pip install git+https://github.com/openai/whisper.git
       pip install sounddevice numpy pynput pyautogui
     """
-    import os
     import whisper, sounddevice as sd, numpy as np, pyautogui, threading, queue, time, pydirectinput as pg
     from pynput import keyboard
     import configparser
+    
     config = configparser.ConfigParser()
-    #debug stuff
-    #print(sd.query_devices())
-    #debug stuff
-    HOTKEY = keyboard.Key.alt_l        # change to whatever key you want
-    SAMPLERATE = 16_000                # Whisper likes 16 kHz mono
-    CHANNELS = 1
-    MODEL_NAME = "base"                # tiny / small / base / medium / large
+
+    HOTKEY      = keyboard.Key.alt_l        # manual changing, remove laters
+    SAMPLERATE  = 16_000                    # Whisper likes 16 kHz mono
+    CHANNELS    = 1
+    MODEL_NAME  = "base"                    # tiny / small / base / medium / large
+    PREFERRED_DEVICE = 4                    # <- your mic device index here
 
     model         = whisper.load_model(MODEL_NAME)
     audio_q       = queue.Queue()      # holds raw float32 chunks
@@ -42,29 +42,27 @@ try:
             mono = indata.mean(axis=1, keepdims=True)   # down‑mix
             audio_q.put(mono.copy())
 
-    PREFERRED_DEVICE = 4  # <- your mic device index here
     def audio_worker():
         with sd.InputStream(samplerate=SAMPLERATE,
                             channels=CHANNELS,
                             callback=audio_callback,
                             device=PREFERRED_DEVICE,
                             dtype='float32'):
-            # Keep thread alive until main program exits
             while not terminate_app.is_set():
                 time.sleep(0.1)
 
     def key_listener():
         def on_press(key):
             if key == HOTKEY and not record_flag.is_set():
-                # flush any old audio still in queue
-                while not audio_q.empty(): audio_q.get()
+                while not audio_q.empty():
+                    audio_q.get()          # flush old audio
                 record_flag.set()
                 print("🎙️  recording…")
                 pg.press('t')
+
         def on_release(key):
             if key == HOTKEY:
                 record_flag.clear()
-                # collect everything recorded so far
                 buffers = []
                 while not audio_q.empty():
                     buffers.append(audio_q.get())
@@ -76,15 +74,14 @@ try:
                                      daemon=True).start()
                 print("⏹️  stopped.")
             elif key == keyboard.Key.esc:
-                terminate_app.set()     # allow graceful exit
-                return False            # stop listener
+                terminate_app.set()
+                return False               # stop listener
 
         with keyboard.Listener(on_press=on_press,
                                on_release=on_release) as listener:
             listener.join()
 
     def transcribe_and_type(audio):
-        # Whisper expects float32 numpy array in range −1..1 at 16 kHz
         print("🧠  transcribing…")
         result = model.transcribe(audio, language="en", fp16=False)
         text   = result["text"].strip()
@@ -98,118 +95,152 @@ try:
 
     def startup():
         print("Startup Finished!")
-        pyautogui.FAILSAFE = False      # let mouse to top‑left corner cancel if needed
+        print("the script is now running! Enter a game of erlc, hold down your hotkey, and enjoy!")
+        print("happy roleplaying!")
+        print("")
+        print("")
+        pyautogui.FAILSAFE = False
         threading.Thread(target=audio_worker, daemon=True).start()
         key_listener()
 
+
+    # ---------- NEW helper for safe integer input ----------
+    def ask_int(prompt: str, valid: tuple[int, ...]):
+        while True:
+            choice = input(prompt).strip()
+            if choice.isdecimal():
+                value = int(choice)
+                if value in valid:
+                    return value
+            clearscreen()
+            print(f"'{choice}' isn’t a valid option.\n")
+            print("welcome to my ERLC script!")
+            print("would you like to:")
+            print("[1] setup the script with new settings")
+            print("[2] load existing settings (buggy at times)")
+            print("[3] view credits")
+            
+    # ---------- Main setup menu (now loops instead of exiting) ----------
     def setup():
         global CHANNELS, PREFERRED_DEVICE, HOTKEY
-        print("welcome to my ERLC script!")
-        print("would you like to:")
-        print("[1] setup the script with new settings")
-        print("[2] load exisitng settings")
-        print("[3] view credits")
-        setting_choice = int(input('Please enter the number that coresponds with your choice!: ' ))
 
-        if setting_choice == 1:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("Setup process will begin momentarily, Here it a quick Tutroial on how to use")
-            print("Press and hold a key of your choice to activate the script")
-            print("upon activation, the script will press t to activate the in-game radio")
-            print("the script will then start recording your voice, say whatever you want!")
-            print("when you stop holding the key, it will stop recording, type what you said, and press enter!")
-            print("")
-            print("thats it for the tutorial!")
-            print("Press ENTER for configuration")
-            input()
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("you will be shown a list of audio devices on your system, on the left side of each one will be a number, please enter the number that corresponds with the microphone you would like to use")
-            print("Press ENTER to continue")
-            input()
-            print(sd.query_devices())
-            print("")
-            print("")
-            PREFERRED_DEVICE = int(input('ENTER HERE: '))
-            print("Now please enter the number of channels you want to use. if you dont know what these are, just put '1'")
-            CHANNELS = int(input('Enter here: '))
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("What key would you like to press to toggle the mic on/off? (I recommend alt_l (which is left alt))")
-            preffered_key = input('Hot‑key (e.g. alt_l): ').strip()
-            #HOTKEY = keyboard.Key.preffered_key
-            HOTKEY = getattr(keyboard.Key, preffered_key)
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("okley dokely, thats basically it!")
+        while True:                                     # top‑level menu loop
+            print("welcome to my ERLC script!")
+            print("would you like to:")
+            print("[1] setup the script with new settings")
+            print("[2] load existing settings (buggy at times)")
+            print("[3] view credits")
+            setting_choice = ask_int(
+                "Please enter the number that corresponds with your choice!: ",
+                (1, 2, 3)
+            )
 
-            print("")
-            print("")
-            print("")
-            print("")
-            print("")
-            print("")
-            print("")
-            print("")
-            print("")
-            print("")
-            print("save settings?")
-            print("[1] save settings")
-            print("[2] dont save settings")
-            save_preference = int(input('response here: '))
-            if save_preference == 1:
-                #print("save")
-                config['Settings'] = {'PREFERRED_DEVICE': PREFERRED_DEVICE, 'CHANNELS': CHANNELS, 'preffered_key' : preffered_key}
-                with open('settings.ini', 'w') as configfile:
-                    config.write(configfile)
-            elif save_preference == 2:
-                print("ok")
-                pass
+            # ---- option 1: new settings ----
+            if setting_choice == 1:
+                clearscreen()
+                print("Setup process will begin momentarily. Here is a quick tutorial on how to use:")
+                print("• Hold your chosen hot‑key to activate the script")
+                print("• The script presses 't', records, then types what you said and hits ENTER")
+                print("\nPress ENTER for configuration")
+                input()
+                clearscreen()
+
+                print("You will see a list of audio devices. Enter the number for your microphone.")
+                print("Press ENTER to continue")
+                input()
+                print(sd.query_devices())
+                print("")
+                while True:
+                    try:
+                        PREFERRED_DEVICE = int(input('ENTER HERE: '))
+                        clearscreen()
+                        break
+                    except ValueError:
+                        clearscreen()
+                        print(sd.query_devices())
+                        print("")
+                        pass
+                print("\nNow enter the number of channels you want to use (1 is fine in most cases)")
+                print("")
+                while True:
+                    try:
+                        CHANNELS = int(input('Enter here: '))
+                        clearscreen()
+                        break
+                    except ValueError:
+                        clearscreen()
+                        print("\nNow enter the number of channels you want to use (1 is fine in most cases)")
+                        print("")
+                        pass
+                print("What key would you like to press to toggle the mic on/off? (e.g. alt_l)")
+                while True:
+                    try:
+                        preferred_key = input('Hot‑key: ').strip()
+                        HOTKEY = getattr(keyboard.Key, preferred_key)
+                        clearscreen()
+                        break
+                    except AttributeError as e:
+                        clearscreen()
+                        print("thats not a valid answer")
+                        print("")
+                        print("What key would you like to press to toggle the mic on/off? (e.g. alt_l)")
+                        pass
+
+
+                print("Save settings?")
+                save_preference = ask_int("1 = save, 2 = don't save: ", (1, 2))
+                if save_preference == 1:
+                    config['Settings'] = {
+                        'PREFERRED_DEVICE': PREFERRED_DEVICE,
+                        'CHANNELS': CHANNELS,
+                        'preferred_key': preferred_key
+                    }
+                    with open('settings.ini', 'w') as configfile:
+                        config.write(configfile)
+
+                print("Initiating startup...\n")
+                startup()
+                return                              # leave setup after successful start
+
+            # ---- option 2: load settings ----
+            elif setting_choice == 2:
+                if not os.path.exists("settings.ini"):
+                    clearscreen()
+                    print("\nNo settings.ini found. Choose option 1 first.\n")
+                    continue                        # back to main menu
+
+                config.read('settings.ini')
+                PREFERRED_DEVICE = int(config['Settings']['PREFERRED_DEVICE'])
+                CHANNELS        = int(config['Settings']['CHANNELS'])
+                preferred_key   = config['Settings']['preferred_key'].strip()
+                HOTKEY = getattr(keyboard.Key, preferred_key)
+                startup()
+                return                              # leave setup after successful start
+
+            # ---- option 3: credits ----
             else:
-                print("you know what you did")
-                exit()
-            print("Initiating startup...")
-            startup()
+                clearscreen()
+                print("Welcome to the credits\n")
+                print("programming - crosszay")
+                print("inspiration - A YouTube short I watched at 10 pm and now can't seem to find")
+                print("testing - crosszay")
+                print("special thanks - ChatGPT for indenting things for me")
+                print("\nPress ENTER to return to the menu")
+                input()
+                clearscreen()
+                # loop continues to show the main menu again
 
-        elif setting_choice == 2:
-            if os.path.exists("settings.ini"):
-                pass
-            else:
-                print("No file exists goofball!")
-                print("look what you've done!!!! the program is now exiting!!!")
-                print("exiting")
-                exit()
-            config.read('settings.ini')
-            PREFERRED_DEVICE = int(config['Settings']['PREFERRED_DEVICE'])
-            CHANNELS = int(int(config['Settings']['CHANNELS']))
-
-            preffered_key = config['Settings']['preffered_key'].strip()
-            HOTKEY = getattr(keyboard.Key, preffered_key)
-            startup()
-        elif setting_choice == 3:
-            print("Welcome to the credits")
-            print("")
-            print("programming - crosszay")
-            print("Inspiration - A Youtube short I watched at 10pm and now cant seem to find")
-            print("testing - crosszay")
-            print("special thanks - chatgpt for indenting things for me | that cool guy who made the youtube short")
-            print("")
-            print("Contact Me")
-            print("want to contact me for some reason? Send me a message on discord! https://discord.gg/guW2yDFZ")
-        else:
-            print("thats not a valid answer!")
-            print("exiting")
-            exit()    
-        
     setup()
 
 except Exception as e:
-    os.system('cls' if os.name == 'nt' else 'clear')
+    clearscreen()
     print("darn it!")
-    print("a critical error occured, and shut down the program")
-    print("Restarting the program will most likely fix this error... if it doesn't, try deleting settings.ini")
+    print("A critical error occurred and shut down the program.")
+    print("Restarting the program will most likely fix this error…")
+    print("If it doesn't, try deleting settings.ini.")
+    print("\nIf you're a super‑duper cool person, file a bug ticket on my Discord server! (https://discord.gg/guW2yDFZ)\n")
     print("")
-    print("if your a super-duper cool person, make a bug ticket on my discord server! (https://discord.gg/guW2yDFZ)")
-    print("")
-    print("")
-    print("if your me, (hi me!) or someone who for some reason wants to know why the program crashed, the error message is below")
+    print("error is below")
     print("--start--")
     print(f"{e}")
     print("--end--")
