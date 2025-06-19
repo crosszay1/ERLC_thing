@@ -30,7 +30,7 @@ try:
     SAMPLERATE  = 16_000                    # Whisper likes 16 kHz mono
     CHANNELS    = 1
     MODEL_NAME  = "base"                    # tiny / small / base / medium / large
-    PREFERRED_DEVICE = 4                    # <- your mic device index here
+    PREFERRED_DEVICE = 4                    # <- mic device index here
 
     model         = whisper.load_model(MODEL_NAME)
     audio_q       = queue.Queue()      # holds raw float32 chunks
@@ -104,7 +104,7 @@ try:
         key_listener()
 
 
-    # ---------- NEW helper for safe integer input ----------
+    # ---------- helper for safe integer input ----------
     def ask_int(prompt: str, valid: tuple[int, ...]):
         while True:
             choice = input(prompt).strip()
@@ -120,7 +120,7 @@ try:
             print("[2] load existing settings (buggy at times)")
             print("[3] view credits")
             
-    # ---------- Main setup menu (now loops instead of exiting) ----------
+    # ---------- Main setup menu ----------
     def setup():
         global CHANNELS, PREFERRED_DEVICE, HOTKEY
 
