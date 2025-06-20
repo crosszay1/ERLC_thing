@@ -1,19 +1,5 @@
+print("LOADING")
 try:
-    import os
-    def clearscreen():
-        os.system('cls' if os.name == 'nt' else 'clear')
-    print("THIS PROGRAM WILL CRASH IF YOU HAVE NOT INSTALLED THE FOLLOWING LIBRARIES")
-    print("sounddevice")
-    print("numpy")
-    print("pynput")
-    print("pyautogui")
-    print("pydirectinput")
-    print("configparser")
-    print("whisper via typing: pip install git+https://github.com/openai/whisper.git")
-    print("")
-    print("press ENTER to continue")
-    input("")
-    clearscreen()
 
     """
     requirements:
@@ -23,7 +9,7 @@ try:
     import whisper, sounddevice as sd, numpy as np, pyautogui, threading, queue, time, pydirectinput as pg
     from pynput import keyboard
     import configparser
-    
+    import os
     config = configparser.ConfigParser()
 
     HOTKEY      = keyboard.Key.alt_l        # manual changing, remove laters
@@ -36,7 +22,8 @@ try:
     audio_q       = queue.Queue()      # holds raw float32 chunks
     record_flag   = threading.Event()  # True while key is down
     terminate_app = threading.Event()  # ctrl‑c friendly shutdown
-
+    def clearscreen():
+        os.system('cls' if os.name == 'nt' else 'clear')
     def audio_callback(indata, frames, time_info, status):
         if record_flag.is_set():
             mono = indata.mean(axis=1, keepdims=True)   # down‑mix
@@ -94,6 +81,7 @@ try:
             print("…no speech detected.")
 
     def startup():
+        clearscreen()
         print("Startup Finished!")
         print("the script is now running! Enter a game of erlc, hold down your hotkey, and enjoy!")
         print("happy roleplaying!")
@@ -208,15 +196,26 @@ try:
                     clearscreen()
                     print("\nNo settings.ini found. Choose option 1 first.\n")
                     continue                        # back to main menu
-
-                config.read('settings.ini')
-                PREFERRED_DEVICE = int(config['Settings']['PREFERRED_DEVICE'])
-                CHANNELS        = int(config['Settings']['CHANNELS'])
-                preferred_key   = config['Settings']['preferred_key'].strip()
-                HOTKEY = getattr(keyboard.Key, preferred_key)
-                startup()
-                return                              # leave setup after successful start
-
+                try:
+                    config.read('settings.ini')
+                    PREFERRED_DEVICE = int(config['Settings']['PREFERRED_DEVICE'])
+                    CHANNELS        = int(config['Settings']['CHANNELS'])
+                    preferred_key   = config['Settings']['preferred_key'].strip()
+                    HOTKEY = getattr(keyboard.Key, preferred_key)
+                    startup()
+                    return
+                except Exception as e:
+                    clearscreen()                  # leave setup after successful start
+                    print("error reading settings.ini")
+                    print("")
+                    os.remove("settings.ini")
+                    print("settings.ini has been deleted")
+                    print("")
+                    print("")
+                    print("Press ENTER to return to main menu")
+                    input()
+                    clearscreen()
+                    continue
             # ---- option 3: credits ----
             else:
                 clearscreen()
@@ -230,7 +229,19 @@ try:
                 input()
                 clearscreen()
                 # loop continues to show the main menu again
-
+    clearscreen()
+    print("THIS PROGRAM WILL CRASH IF YOU HAVE NOT INSTALLED THE FOLLOWING LIBRARIES")
+    print("sounddevice")
+    print("numpy")
+    print("pynput")
+    print("pyautogui")
+    print("pydirectinput")
+    print("configparser")
+    print("whisper via typing: pip install git+https://github.com/openai/whisper.git")
+    print("")
+    print("press ENTER to continue")
+    input("")
+    clearscreen()
     setup()
 
 except Exception as e:
