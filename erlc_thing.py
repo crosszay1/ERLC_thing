@@ -1,6 +1,88 @@
-print("LOADING")
+print("Making Sure All Dependencies Are Installed")
 try:
+    import sys
+    import subprocess
+    from importlib.util import find_spec
+    from importlib import metadata  # std‑lib in Py ≥3.8
 
+    def check_and_install_dependencies():
+        """
+        Checks for required Python packages.  If any are missing *or* NumPy is not
+        exactly 2.2.0, prompts the user to install the correct versions.
+        """
+
+        required_packages = [
+            "sounddevice",
+            "numpy",           # we’ll enforce 2.2.0 below
+            "pynput",
+            "pyautogui",
+            "pydirectinput",
+            "configparser",
+            "whisper",
+        ]
+
+    #create list of uninstalled packages
+        missing = []
+
+        for package in required_packages:
+            if find_spec(package) is None:
+                # Not installed at all
+                missing.append(package)
+            elif package == "numpy":
+                # Installed — but do we have the right version?
+                installed = metadata.version("numpy")
+                if installed != "2.2.0":
+                    print(f"NumPy {installed} found; 2.2.0 required.")
+                    missing.append(package)
+
+    # No issues? carry on.
+        if not missing:
+            print("All dependencies satisfied.")
+            return
+    #tell user what they have not installed :(
+        print("The following packages (or versions) are required:")
+        for pkg in missing:
+            if pkg == "numpy":
+                print("  • numpy==2.2.0")
+            else:
+                print(f"  • {pkg}")
+
+    #prompt until user stops giving us annoying invalid answers
+        while True:
+            answer = input("\nInstall them now? (y/n): ").strip().lower()
+            if answer in ("y", "yes"):
+                break
+            if answer in ("n", "no"):
+                print("\nExiting: cannot continue without the required packages.")
+                sys.exit(1)
+            print("Please enter 'y' or 'n'.")
+
+    
+    #Assemble pip install targets and run pip        #
+    
+        install_targets = []
+        for pkg in missing:
+            if pkg == "numpy":
+                install_targets.append("numpy==2.2.0")
+            elif pkg == "whisper":
+                install_targets.append("git+https://github.com/openai/whisper.git")
+            else:
+                install_targets.append(pkg)
+
+        print("\nInstalling packages …")
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", *install_targets],
+                check=True
+            )
+            print("\n Installation complete.  Please restart this script.")
+            sys.exit(1)
+        except subprocess.CalledProcessError as err:
+            print(f"\n pip failed with error: {err}")
+        sys.exit(1)
+    check_and_install_dependencies()
+    print("")
+    print("Loading...")
     """
     requirements:
       pip install git+https://github.com/openai/whisper.git
@@ -29,6 +111,28 @@ try:
             mono = indata.mean(axis=1, keepdims=True)   # down‑mix
             audio_q.put(mono.copy())
 
+    def validate_device_and_channels(dev_index: int, channels: int) -> None:
+        """Raise ValueError if the device index is invalid or the channel
+        count exceeds what the device supports."""
+        devices = sd.query_devices()                 # list of all devices
+
+        # --- index in range? 
+        if dev_index < 0 or dev_index >= len(devices):
+            raise ValueError(
+                f"Device index {dev_index} is out of range; "
+                f"valid indices are 0‑{len(devices) - 1}."
+                
+            )
+
+        # --- channel count valid?
+        info   = sd.query_devices(dev_index)         
+        max_in = info['max_input_channels']
+        if channels > max_in:
+            raise ValueError(
+                f"Device '{info['name']}' supports only {max_in} input channel(s), "
+                f"but you asked for {channels}."
+            )
+            
     def audio_worker():
         with sd.InputStream(samplerate=SAMPLERATE,
                             channels=CHANNELS,
@@ -113,6 +217,7 @@ try:
         global CHANNELS, PREFERRED_DEVICE, HOTKEY
 
         while True:                                     # top‑level menu loop
+            clearscreen()
             print("welcome to my ERLC script!")
             print("would you like to:")
             print("[1] setup the script with new settings")
@@ -132,7 +237,8 @@ try:
                 print("\nPress ENTER for configuration")
                 input()
                 clearscreen()
-
+                if os.path.exists("settings.ini"):
+                    os.remove("settings.ini")
                 print("You will see a list of audio devices. Enter the number for your microphone.")
                 print("Press ENTER to continue")
                 input()
@@ -141,6 +247,7 @@ try:
                 while True:
                     try:
                         PREFERRED_DEVICE = int(input('ENTER HERE: '))
+                        validate_device_and_channels(PREFERRED_DEVICE, 1)
                         clearscreen()
                         break
                     except ValueError:
@@ -153,6 +260,7 @@ try:
                 while True:
                     try:
                         CHANNELS = int(input('Enter here: '))
+                        validate_device_and_channels(PREFERRED_DEVICE, CHANNELS)
                         clearscreen()
                         break
                     except ValueError:
@@ -161,6 +269,9 @@ try:
                         print("")
                         pass
                 print("What key would you like to press to toggle the mic on/off? (e.g. alt_l)")
+                print("")
+                print("NOTE: I am aware some inputs are being excepted despite the fact they are invalid. Please use alt_l for now (this is the left alt on your keyboard)")
+                print("if you do not choose to abide by this warning, you continue at your own risk, and cannot be mad at me if the script does not work")
                 while True:
                     try:
                         preferred_key = input('Hot‑key: ').strip()
@@ -195,6 +306,8 @@ try:
                 if not os.path.exists("settings.ini"):
                     clearscreen()
                     print("\nNo settings.ini found. Choose option 1 first.\n")
+                    print("Press ENTER to return to menu")
+                    input()
                     continue                        # back to main menu
                 try:
                     config.read('settings.ini')
@@ -202,6 +315,9 @@ try:
                     CHANNELS        = int(config['Settings']['CHANNELS'])
                     preferred_key   = config['Settings']['preferred_key'].strip()
                     HOTKEY = getattr(keyboard.Key, preferred_key)
+
+                    validate_device_and_channels(PREFERRED_DEVICE, CHANNELS)
+
                     startup()
                     return
                 except Exception as e:
@@ -212,6 +328,7 @@ try:
                     print("settings.ini has been deleted")
                     print("")
                     print("")
+                    print("Please Select Option 1 to set things up again")
                     print("Press ENTER to return to main menu")
                     input()
                     clearscreen()
@@ -229,21 +346,7 @@ try:
                 input()
                 clearscreen()
                 # loop continues to show the main menu again
-    clearscreen()
-    print("THIS PROGRAM WILL CRASH IF YOU HAVE NOT INSTALLED THE FOLLOWING LIBRARIES")
-    print("sounddevice")
-    print("numpy")
-    print("pynput")
-    print("pyautogui")
-    print("pydirectinput")
-    print("configparser")
-    print("whisper via typing: pip install git+https://github.com/openai/whisper.git")
-    print("")
-    print("press ENTER to continue")
-    input("")
-    clearscreen()
     setup()
-
 except Exception as e:
     clearscreen()
     print("darn it!")
