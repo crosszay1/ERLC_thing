@@ -1,11 +1,10 @@
-This is my first public project, so I'm not quite sure what to put here....
+Welcome to ERLC_thing! (this name will probably be changed later)
 
-How about this, the script will walk you through how to use it, and if your still unsure, dm me on discord! https://discord.gg/guW2yDFZ
+ERLC_thing is a simple and user-friendly way of enabling voicechat for the police/dot/FD radios!
 
-Feel free to edit this script and make it better, but PLEASE, PLEASE, PLEASE, give me credit :)
+How does it work you may ask? It's quite simple actually, I activate the ingame radio (as an indicator I am recording), them I simply record whatever the user says, then I use OpenAI's "Whisper" to transcribe what has been said to text, then finally, I type whatever whisper transcribed, and press ENTER!
 
-thats it!
+This project is still in the very early stages of development, and testers are welcome! 
+If you encounter any issues, please make a ticket here: discord.gg/9F59Dks4bp
 
-Oh I should probably explain what this does, basically you know how sometimes your driving a car in ERLC, and you want to chat on the radio but you cant steer while your chatting? Well this fixes that! it uses Whisper (from OpenAI) to transcribe you speech to text! simply hold down a key of your choice, and it would automatically record your voice, actiavte the radio, type the message, and click enter!
-
-happy roleplaying!
+Additionally, I spent an incredible ammount of time making the program user-friendly, and child proofing it, so it is virtually impossible to crash it with silly mistakes.
