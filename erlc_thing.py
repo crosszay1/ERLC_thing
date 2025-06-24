@@ -54,6 +54,9 @@ try:
                 break
             if answer in ("n", "no"):
                 print("\nExiting: cannot continue without the required packages.")
+                print("")
+                print("EXITING in 5 seconds")
+                time.sleep(5)
                 sys.exit(1)
             print("Please enter 'y' or 'n'.")
 
@@ -76,9 +79,15 @@ try:
                 check=True
             )
             print("\n Installation complete.  Please restart this script.")
+            print("")
+            print("Exiting in 5 seconds")
+            time.sleep(5)
             sys.exit(1)
         except subprocess.CalledProcessError as err:
             print(f"\n pip failed with error: {err}")
+            print("")
+            print("Press ENTER to exit")
+            input()
         sys.exit(1)
     check_and_install_dependencies()
     print("")
