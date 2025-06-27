@@ -8,3 +8,5 @@ This project is still in the very early stages of development, and testers are w
 If you encounter any issues, please make a ticket here: discord.gg/9F59Dks4bp
 
 Additionally, I spent an incredible ammount of time making the program user-friendly, and child proofing it, so it is virtually impossible to crash it with silly mistakes.
+
+NOTE: The script will install all python dependencies, but it requires a git to be installed and added to PATH. If you have not done this, you  will be unable to install whisper and thus unable to use the script.
