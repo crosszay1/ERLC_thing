@@ -92,6 +92,7 @@ try:
     check_and_install_dependencies()
     print("")
     print("Loading...")
+    print("This may take a a sec (1-10 seconds)")
     """
     requirements:
       pip install git+https://github.com/openai/whisper.git
@@ -361,11 +362,15 @@ except Exception as e:
     print("darn it!")
     print("A critical error occurred and shut down the program.")
     print("Restarting the program will most likely fix this error…")
-    print("If it doesn't, try deleting settings.ini.")
+    print("If it doesn't, try deleting settings.ini.") #I don't think this is necessary because we already delete if loading fails, but I supposed this is a good backup... there was an issue earlier where the try loop failed to catch the error. if that happens again, this is good
     print("\nIf you're a super‑duper cool person, file a bug ticket on my Discord server! (https://discord.gg/9F59Dks4bp)\n")
     print("")
     print("error is below")
     print("--start--")
     print(f"{e}")
     print("--end--")
+    print("")
+    print("")
+    print("Press ENTER to EXIT")
+    input()
     exit()
