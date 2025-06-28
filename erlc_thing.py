@@ -1,3 +1,4 @@
+
 print("Making Sure All Dependencies Are Installed")
 try:
     import sys
@@ -80,9 +81,8 @@ try:
             )
             print("\n Installation complete.  Please restart this script.")
             print("")
-            print("Exiting in 5 seconds")
-            time.sleep(5)
-            sys.exit(1)
+            print("Press ENTER to exit")
+            input()
         except subprocess.CalledProcessError as err:
             print(f"\n pip failed with error: {err}")
             print("")
@@ -109,7 +109,6 @@ try:
     CHANNELS    = 1
     MODEL_NAME  = "base"                    # tiny / small / base / medium / large
     PREFERRED_DEVICE = 4                    # <- mic device index here
-
     model         = whisper.load_model(MODEL_NAME)
     audio_q       = queue.Queue()      # holds raw float32 chunks
     record_flag   = threading.Event()  # True while key is down
@@ -224,6 +223,7 @@ try:
             
     # ---------- Main setup menu ----------
     def setup():
+
         global CHANNELS, PREFERRED_DEVICE, HOTKEY
 
         while True:                                     # top‑level menu loop
@@ -252,7 +252,10 @@ try:
                 print("You will see a list of audio devices. Enter the number for your microphone.")
                 print("Press ENTER to continue")
                 input()
-                print(sd.query_devices())
+                #print(sd.query_devices())
+                for i, device in enumerate(sd.query_devices()):
+                    if device['max_input_channels'] > 0: #WHY NOT WORK
+                        print(f"{i}: {device['name']} - {device['max_input_channels']} max of input channels")
                 print("")
                 while True:
                     try:
@@ -350,7 +353,7 @@ try:
                 print("programming - crosszay")
                 print("inspiration - A YouTube short I watched at 10 pm and now can't seem to find")
                 print("testing - crosszay")
-                print("special thanks - ChatGPT for indenting things for me")
+                print("special thanks - ChatGPT")
                 print("Community discord server is: https://discord.gg/9F59Dks4bp")
                 print("\nPress ENTER to return to the menu")
                 input()
