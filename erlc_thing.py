@@ -1,4 +1,6 @@
-
+import time
+slashprefix = True
+customprefix = 't'
 print("Making Sure All Dependencies Are Installed")
 try:
     import sys
@@ -98,7 +100,7 @@ try:
       pip install git+https://github.com/openai/whisper.git
       pip install sounddevice numpy pynput pyautogui
     """
-    import whisper, sounddevice as sd, numpy as np, pyautogui, threading, queue, time, pydirectinput as pg
+    import whisper, sounddevice as sd, numpy as np, pyautogui, threading, queue, pydirectinput as pg
     from pynput import keyboard
     import configparser
     import os
@@ -158,7 +160,11 @@ try:
                     audio_q.get()          # flush old audio
                 record_flag.set()
                 print("🎙️  recording…")
-                pg.press('t')
+                try:
+                    if customprefix != 'PASS' and len(customprefix) == 1 and customprefix.isprintable():
+                        pg.press(customprefix)
+                except Exception as e:
+                    print(f"Failed to press custom prefix key: {e}")
 
         def on_release(key):
             if key == HOTKEY:
@@ -187,9 +193,12 @@ try:
         text   = result["text"].strip()
         if text:
             print("⌨️  typing:", text)
-            pg.press('/')
+            if slashprefix == True:
+                pg.press('/')
             pyautogui.write(text)
             pg.press('enter')
+
+
         else:
             print("…no speech detected.")
 
@@ -206,7 +215,7 @@ try:
 
 
     # ---------- helper for safe integer input ----------
-    def ask_int(prompt: str, valid: tuple[int, ...]):
+    def ask_int(prompt: str, valid: tuple[int, ...], error_message: str = None):
         while True:
             choice = input(prompt).strip()
             if choice.isdecimal():
@@ -215,28 +224,36 @@ try:
                     return value
             clearscreen()
             print(f"'{choice}' isn’t a valid option.\n")
-            print("welcome to my ERLC script!")
-            print("would you like to:")
-            print("[1] setup the script with new settings")
-            print("[2] load existing settings (buggy at times)")
-            print("[3] view credits")
+            if error_message:
+                print(error_message)
+
             
     # ---------- Main setup menu ----------
     def setup():
 
-        global CHANNELS, PREFERRED_DEVICE, HOTKEY
+        global CHANNELS, PREFERRED_DEVICE, HOTKEY, slashprefix, customprefix
 
         while True:                                     # top‑level menu loop
             clearscreen()
             print("welcome to my ERLC script!")
             print("would you like to:")
             print("[1] setup the script with new settings")
-            print("[2] load existing settings (buggy at times)")
+            print("[2] load existing settings")
             print("[3] view credits")
+            print("[4] Settings")
             setting_choice = ask_int(
                 "Please enter the number that corresponds with your choice!: ",
-                (1, 2, 3)
-            )
+                (1, 2, 3, 4),
+                error_message="""
+welcome to my ERLC script!
+would you like to:
+[1] setup the script with new settings
+[2] load existing settings (buggy at times)
+[3] view credits
+[4] Settings
+                """
+                )
+
 
             # ---- option 1: new settings ----
             if setting_choice == 1:
@@ -259,7 +276,11 @@ try:
                 print("")
                 while True:
                     try:
-                        PREFERRED_DEVICE = int(input('ENTER HERE: '))
+                        try:
+                            PREFERRED_DEVICE = int(input("ENTER HERE: ").strip())
+                        except ValueError:
+                            print("Please enter a valid integer.")
+
                         validate_device_and_channels(PREFERRED_DEVICE, 1)
                         clearscreen()
                         break
@@ -282,15 +303,23 @@ try:
                         print("")
                         pass
                 print("What key would you like to press to toggle the mic on/off? (e.g. alt_l)")
+                print("alt_l has been proven to work for key inputs. others are semi-experimental")
                 print("")
-                print("NOTE: I am aware some inputs are being excepted despite the fact they are invalid. Please use alt_l for now (this is the left alt on your keyboard)")
-                print("if you do not choose to abide by this warning, you continue at your own risk, and cannot be mad at me if the script does not work")
+                valid_keys = [k for k in dir(keyboard.Key) if not k.startswith("_")]
+                print("Valid options include:", ', '.join(valid_keys[:10]), "...")
+
                 while True:
                     try:
                         preferred_key = input('Hot‑key: ').strip()
-                        HOTKEY = getattr(keyboard.Key, preferred_key)
-                        clearscreen()
-                        break
+                        if preferred_key in valid_keys:
+                            HOTKEY = getattr(keyboard.Key, preferred_key)
+                            break
+                        else:
+                            print("Invalid key.")
+                            print("Press ENTER to continue")
+                            input()
+                            clearscreen()
+                            continue
                     except AttributeError as e:
                         clearscreen()
                         print("thats not a valid answer")
@@ -298,15 +327,18 @@ try:
                         print("What key would you like to press to toggle the mic on/off? (e.g. alt_l)")
                         pass
 
-
+                clearscreen()
                 print("Save settings?")
                 save_preference = ask_int("1 = save, 2 = don't save: ", (1, 2))
                 if save_preference == 1:
                     config['Settings'] = {
-                        'PREFERRED_DEVICE': PREFERRED_DEVICE,
-                        'CHANNELS': CHANNELS,
-                        'preferred_key': preferred_key
+                        'PREFERRED_DEVICE': str(PREFERRED_DEVICE),
+                        'CHANNELS': str(CHANNELS),
+                        'preferred_key': preferred_key,
+                        'customprefix': customprefix,
+                        'slashprefix': str(slashprefix)
                     }
+
                     with open('settings.ini', 'w') as configfile:
                         config.write(configfile)
 
@@ -323,11 +355,18 @@ try:
                     input()
                     continue                        # back to main menu
                 try:
+                    required_keys = {"PREFERRED_DEVICE", "CHANNELS", "preferred_key", "customprefix", "slashprefix"}
+                    if not required_keys.issubset(config['Settings']):
+                        raise KeyError("Incomplete settings.ini")
+
                     config.read('settings.ini')
                     PREFERRED_DEVICE = int(config['Settings']['PREFERRED_DEVICE'])
                     CHANNELS        = int(config['Settings']['CHANNELS'])
                     preferred_key   = config['Settings']['preferred_key'].strip()
                     HOTKEY = getattr(keyboard.Key, preferred_key)
+                    slashprefix = config['Settings'].getboolean('slashprefix')  # Handles "true"/"false" strings
+                    customprefix = config['Settings'].get('customprefix', 't')
+
 
                     validate_device_and_channels(PREFERRED_DEVICE, CHANNELS)
 
@@ -346,8 +385,78 @@ try:
                     input()
                     clearscreen()
                     continue
-            # ---- option 3: credits ----
-            else:
+           
+            elif setting_choice == 4:
+                clearscreen()
+                clearscreen()
+                print("What would you like to do?")
+                print("")
+                print("[1] toggle the slash prefix on and off (this is because pressing / opens the roblox chat menu)")
+                print("[2] modify custom prefixes")
+                print("[3] return to main menu and save settings")
+
+
+
+                option4_choice = ask_int(
+    "Please enter the number that corresponds with your choice!: ",
+    (1, 2, 3),
+    error_message="""
+What would you like to do?
+
+[1] toggle the slash prefix on and off (this is because pressing / opens the roblox chat menu)
+[2] modify custom prefixes
+[3] return to main menu
+"""
+)
+
+
+
+
+
+
+                if option4_choice == 1:
+                    slashprefix = not slashprefix
+                    clearscreen()
+                    print("Slash prefix has been toggled ")
+                    print("Value:" , slashprefix)
+                    input()
+                elif option4_choice == 2:
+                    clearscreen()
+                    print("Custom prefix is the thing pressed before the slash command is pressed. This script is designed for ERLC, so the the default is 't'. though this value can be changed here")
+                    print("Current prefix: " , customprefix)
+                    print("")
+                    print("Enter new value below or type PASS for no prefix")
+                    while True:
+                        new_prefix = input("Enter new value: ").strip()
+                        if new_prefix.upper() == "PASS":
+                            customprefix = "PASS"
+                            break
+                        elif len(new_prefix) == 1 and new_prefix.isprintable():
+                            customprefix = new_prefix
+                            break
+                        else:
+                            print("Invalid custom prefix. Must be a single printable character or 'PASS'.")
+                            input("Press ENTER to try again")
+                            clearscreen()
+
+
+
+
+
+
+                elif option4_choice == 3:
+                    if 'Settings' not in config:
+                        config['Settings'] = {}
+                    config['Settings']['customprefix'] = customprefix
+                    config['Settings']['slashprefix'] = str(slashprefix)
+                    with open('settings.ini', 'w') as configfile:
+                        config.write(configfile)
+                    print("Settings saved.")
+                    print("Press ENTER to return to main menu")
+                    input()
+
+
+            elif setting_choice == 3:
                 clearscreen()
                 print("Welcome to the credits\n")
                 print("programming - crosszay")
@@ -358,7 +467,7 @@ try:
                 print("\nPress ENTER to return to the menu")
                 input()
                 clearscreen()
-                # loop continues to show the main menu again
+
     setup()
 except Exception as e:
     clearscreen()
@@ -370,7 +479,7 @@ except Exception as e:
     print("")
     print("error is below")
     print("--start--")
-    print(f"{e}")
+    print(e)
     print("--end--")
     print("")
     print("")
